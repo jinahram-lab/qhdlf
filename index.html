@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>보일 법칙 가상 실험 (100 mL 주사기 압력 측정)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      height: 22px;
+      width: 22px;
+      border-radius: 50%;
+      background: #0284c7;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      border: 2px solid white;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-sky-600 flex items-center justify-center text-white shadow-xs">
+          <i class="fa-solid fa-syringe text-base"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+            보일 법칙 가상 실험
+            <span class="text-xs font-semibold px-2 py-0.5 bg-sky-100 text-sky-800 rounded-full">100 mL 주사기</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Reset Button -->
+      <div>
+        <button id="btn-reset-all" class="px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition flex items-center gap-1.5 text-xs font-bold shadow-2xs">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span>실험 초기화</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+    <!-- 1. Interactive 100 mL Syringe Simulation Card -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 flex flex-col">
+      
+      <!-- Top Instruction & Live Status -->
+      <div class="flex flex-wrap items-center justify-between pb-3 border-b border-slate-100 mb-3 gap-2 text-xs">
+        <div class="flex items-center gap-2 text-slate-600 font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>피스톤 손잡이를 직접 드래그하거나 아래 슬라이더로 부피를 조절하세요.</span>
+        </div>
+        <div class="text-slate-500">
+          초기 상태: <strong>100 mL (1.00 기압)</strong>
+        </div>
+      </div>
+
+      <!-- Syringe Canvas -->
+      <div class="relative w-full h-[280px] sm:h-[300px] bg-slate-950 rounded-xl overflow-hidden shadow-inner flex items-center justify-center">
+        <canvas id="syringeCanvas" class="w-full h-full cursor-ew-resize select-none"></canvas>
+
+        <!-- Digital Pressure Gauge Overlay (Attached to nozzle on left) - Only '기압' -->
+        <div class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-xl flex items-center gap-3 pointer-events-none">
+          <div class="w-10 h-10 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400">
+            <i class="fa-solid fa-gauge-high text-lg"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">압력 센서</div>
+            <div class="text-2xl font-black text-amber-400 font-mono leading-tight">
+              <span id="overlay-pressure-atm">1.00</span> <span class="text-xs font-bold text-slate-300">기압</span>
+            </div>
+            <div class="text-[10px] text-slate-400">밀폐 연결 상태</div>
+          </div>
+        </div>
+
+        <!-- Current Volume Overlay (Bottom right) -->
+        <div class="absolute bottom-3 right-3 bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 pointer-events-none flex items-center gap-2">
+          <span class="text-sky-400 font-bold">측정 부피:</span>
+          <strong id="overlay-volume-ml" class="text-white font-mono text-base font-black">100.0 mL</strong>
+        </div>
+
+        <!-- Syringe model tag -->
+        <div class="absolute bottom-3 left-3 bg-slate-900/80 border border-slate-700/80 rounded px-2 py-0.5 text-[11px] text-slate-400 pointer-events-none">
+          100 mL 플라스틱 주사기
+        </div>
+      </div>
+
+      <!-- Volume Controls & Presets -->
+      <div class="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
+        <!-- Slider -->
+        <div class="flex items-center gap-3">
+          <label for="volumeSlider" class="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1.5">
+            <i class="fa-solid fa-sliders text-sky-600"></i> 부피(V) 조절:
+          </label>
+          <input id="volumeSlider" type="range" min="20" max="100" step="1" value="100" class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-600">
+          <span class="text-base font-black font-mono text-sky-700 w-20 text-right">
+            <span id="slider-vol-display">100.0</span> mL
+          </span>
+        </div>
+
+        <!-- Steppers & Presets -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200 text-xs">
+          <!-- Fine Adjustment Steppers -->
+          <div class="flex items-center space-x-1">
+            <span class="text-slate-500 mr-1 text-[11px]">미세 조정:</span>
+            <button class="step-btn px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-slate-700 font-medium" data-step="-5">-5 mL</button>
+            <button class="step-btn px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-slate-700 font-medium" data-step="-1">-1 mL</button>
+            <button class="step-btn px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-slate-700 font-medium" data-step="+1">+1 mL</button>
+            <button class="step-btn px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-slate-700 font-medium" data-step="+5">+5 mL</button>
+          </div>
+
+          <!-- Presets for 100 mL syringe -->
+          <div class="flex items-center space-x-1">
+            <span class="text-slate-500 mr-1 text-[11px] font-semibold text-sky-700">추천 부피:</span>
+            <button class="preset-btn px-2.5 py-1 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded text-sky-700 font-semibold" data-vol="100">100 mL</button>
+            <button class="preset-btn px-2.5 py-1 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded text-sky-700 font-semibold" data-vol="80">80 mL</button>
+            <button class="preset-btn px-2.5 py-1 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded text-sky-700 font-semibold" data-vol="60">60 mL</button>
+            <button class="preset-btn px-2.5 py-1 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded text-sky-700 font-semibold" data-vol="50">50 mL</button>
+            <button class="preset-btn px-2.5 py-1 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded text-sky-700 font-semibold" data-vol="40">40 mL</button>
+            <button class="preset-btn px-2.5 py-1 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded text-sky-700 font-semibold" data-vol="25">25 mL</button>
+            <button class="preset-btn px-2.5 py-1 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded text-sky-700 font-semibold" data-vol="20">20 mL</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Button: Record Measurement -->
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-xs text-slate-500 flex items-center gap-1.5">
+          <span class="px-1.5 py-0.5 bg-slate-200 text-slate-700 font-mono rounded text-[10px]">Space</span> 또는
+          <span class="px-1.5 py-0.5 bg-slate-200 text-slate-700 font-mono rounded text-[10px]">Enter</span> 키로도 측정값을 기록할 수 있습니다.
+        </div>
+
+        <button id="btn-record-data" class="w-full sm:w-auto px-6 py-2.5 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white font-bold rounded-xl shadow-md shadow-sky-500/25 transition flex items-center justify-center gap-2 text-sm">
+          <i class="fa-solid fa-pen-to-square text-amber-300"></i>
+          <span>현재 측정값 표에 기록하기</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- 2. Measurement Data Table Card (Strictly Volume and Pressure only) -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+        <h2 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-table-list text-sky-600"></i>
+          측정 데이터 기록표
+          <span id="data-count-badge" class="text-xs px-2 py-0.5 bg-slate-100 text-slate-700 font-medium rounded-full">0건 기록됨</span>
+        </h2>
+
+        <button id="btn-clear-table" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs transition flex items-center gap-1.5 font-medium">
+          <i class="fa-regular fa-trash-can text-slate-400"></i>
+          <span>표 비우기</span>
+        </button>
+      </div>
+
+      <!-- Measurement Table: Only No, Volume, Pressure, Delete -->
+      <div class="overflow-x-auto border border-slate-200 rounded-xl">
+        <table class="w-full text-left text-xs sm:text-sm text-slate-700 border-collapse">
+          <thead class="bg-slate-50 text-[11px] sm:text-xs text-slate-600 uppercase border-b border-slate-200">
+            <tr>
+              <th class="py-3 px-4 font-bold text-center w-16">번호</th>
+              <th class="py-3 px-6 font-bold text-center">부피 (mL)</th>
+              <th class="py-3 px-6 font-bold text-center text-amber-800 bg-amber-50/40">압력 (기압)</th>
+              <th class="py-3 px-3 font-bold text-center w-20">삭제</th>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="divide-y divide-slate-100 font-mono">
+            <!-- Dynamically populated rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Application Script -->
+  <script>
+    // --- State Management ---
+    const STATE = {
+      volume: 100.0,        // mL (20.0 ~ 100.0 mL for 100 mL syringe)
+      records: [],          // array of { id, volume, pressureAtm }
+      nextRecordId: 1
+    };
+
+    // Standard 100 mL Syringe: at V=100.0 mL, P = 1.00 기압 (atm)
+    const BASE_V = 100.0;
+    const BASE_P_ATM = 1.00;
+
+    // --- Physics Helper Functions ---
+    function calculatePressureAtm(volume) {
+      // P = P0 * (V0 / V)
+      const p = BASE_P_ATM * (BASE_V / volume);
+      return Math.max(0.1, p);
+    }
+
+    // --- 100 mL Syringe Drawing & Drag Engine (NO Particles) ---
+    class SyringeSimulation {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.isDraggingPiston = false;
+
+        this.bindEvents();
+      }
+
+      getSyringeBounds() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const left = 140; // After nozzle and sensor on left
+        const top = h / 2 - 45;
+        const height = 90;
+        const maxBarrelWidth = w - left - 100;
+
+        // Volume range 20 mL to 100 mL
+        const ratio = Math.max(0, Math.min(1, STATE.volume / 100.0));
+        const pistonX = left + ratio * maxBarrelWidth;
+        const fullRight = left + maxBarrelWidth;
+
+        return { left, top, height, pistonX, fullRight, centerY: h / 2 };
+      }
+
+      bindEvents() {
+        const handleDown = (clientX, clientY) => {
+          const rect = this.canvas.getBoundingClientRect();
+          const scaleX = this.canvas.width / rect.width;
+          const scaleY = this.canvas.height / rect.height;
+          const x = (clientX - rect.left) * scaleX;
+          const y = (clientY - rect.top) * scaleY;
+          const b = this.getSyringeBounds();
+
+          if (x >= b.pistonX - 15 && x <= b.pistonX + 160 && y >= b.top - 30 && y <= b.top + b.height + 30) {
+            this.isDraggingPiston = true;
+          }
+        };
+
+        const handleMove = (clientX, clientY) => {
+          const rect = this.canvas.getBoundingClientRect();
+          const scaleX = this.canvas.width / rect.width;
+          const x = (clientX - rect.left) * scaleX;
+          const b = this.getSyringeBounds();
+
+          const nearPlunger = x >= b.pistonX - 15 && x <= b.pistonX + 160;
+          this.canvas.style.cursor = nearPlunger || this.isDraggingPiston ? 'ew-resize' : 'default';
+
+          if (this.isDraggingPiston) {
+            const barrelLen = b.fullRight - b.left;
+            // clamp between 20 mL and 100 mL
+            const currentLen = Math.max(barrelLen * (20 / 100), Math.min(barrelLen, x - b.left));
+            const newVol = Math.round((currentLen / barrelLen * 100.0) * 10) / 10;
+            if (newVol !== STATE.volume) {
+              setVolume(newVol);
+            }
+          }
+        };
+
+        const handleUp = () => {
+          this.isDraggingPiston = false;
+        };
+
+        this.canvas.addEventListener('mousedown', e => handleDown(e.clientX, e.clientY));
+        window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+        window.addEventListener('mouseup', handleUp);
+
+        this.canvas.addEventListener('touchstart', e => {
+          if (e.touches.length === 1) {
+            handleDown(e.touches[0].clientX, e.touches[0].clientY);
+          }
+        }, { passive: true });
+        window.addEventListener('touchmove', e => {
+          if (this.isDraggingPiston && e.touches.length === 1) {
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+          }
+        }, { passive: true });
+        window.addEventListener('touchend', handleUp);
+      }
+
+      draw() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const b = this.getSyringeBounds();
+
+        // 1. Dark laboratory background
+        ctx.fillStyle = '#090d16';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.save();
+
+        // 2. Pressure Sensor on left (Showing only '기압')
+        const sensorX = 25;
+        const sensorY = b.centerY - 50;
+        const sensorW = 90;
+        const sensorH = 100;
+
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.roundRect(sensorX, sensorY, sensorW, sensorH, 8);
+        ctx.fill();
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Sensor screen
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(sensorX + 8, sensorY + 12, sensorW - 16, 50);
+        ctx.strokeStyle = '#0369a1';
+        ctx.strokeRect(sensorX + 8, sensorY + 12, sensorW - 16, 50);
+
+        const curAtm = calculatePressureAtm(STATE.volume);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 15px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(curAtm.toFixed(2), sensorX + sensorW / 2, sensorY + 36);
+        ctx.font = 'bold 9px Pretendard, sans-serif';
+        ctx.fillStyle = '#bae6fd';
+        ctx.fillText('기압', sensorX + sensorW / 2, sensorY + 50);
+
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.arc(sensorX + 16, sensorY + 80, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '9px Pretendard, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('MBL 센서', sensorX + 26, sensorY + 83);
+
+        // Connector
+        const connectX = sensorX + sensorW;
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(connectX, b.centerY - 10, 25, 20);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.strokeRect(connectX, b.centerY - 10, 25, 20);
+
+        // Nozzle
+        ctx.fillStyle = 'rgba(241, 245, 249, 0.75)';
+        ctx.fillRect(connectX + 25, b.centerY - 8, b.left - (connectX + 25), 16);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.strokeRect(connectX + 25, b.centerY - 8, b.left - (connectX + 25), 16);
+
+        // 3. Syringe Gas Chamber (Clean transparent air chamber, NO particles)
+        const chamberW = b.pistonX - b.left;
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.08)';
+        ctx.fillRect(b.left, b.top, chamberW, b.height);
+
+        // Glass Outer Body
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+        ctx.fillRect(b.left, b.top, b.fullRight - b.left, b.height);
+
+        // Glass highlight reflection
+        const grad = ctx.createLinearGradient(0, b.top, 0, b.top + b.height);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+        grad.addColorStop(0.18, 'rgba(255, 255, 255, 0.04)');
+        grad.addColorStop(0.82, 'rgba(255, 255, 255, 0.02)');
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0.18)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(b.left, b.top, b.fullRight - b.left, b.height);
+
+        // Syringe Glass Outline
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(b.left, b.top);
+        ctx.lineTo(b.left, b.centerY - 8);
+        ctx.moveTo(b.left, b.centerY + 8);
+        ctx.lineTo(b.left, b.top + b.height);
+        ctx.moveTo(b.left, b.top);
+        ctx.lineTo(b.fullRight + 12, b.top);
+        ctx.moveTo(b.left, b.top + b.height);
+        ctx.lineTo(b.fullRight + 12, b.top + b.height);
+        ctx.stroke();
+
+        // Barrel Flange
+        ctx.fillStyle = 'rgba(203, 213, 225, 0.9)';
+        ctx.fillRect(b.fullRight + 8, b.top - 24, 10, b.height + 48);
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(b.fullRight + 8, b.top - 24, 10, b.height + 48);
+
+        // 4. Scale Markings for 100 mL Syringe (0 to 100 mL)
+        ctx.strokeStyle = '#f8fafc';
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+
+        const barrelLen = b.fullRight - b.left;
+        for (let vol = 0; vol <= 100; vol += 5) {
+          const markX = b.left + (vol / 100.0) * barrelLen;
+          const isMajor = vol % 20 === 0;
+          const isMid = vol % 10 === 0;
+          const tickLen = isMajor ? 18 : (isMid ? 12 : 7);
+
+          ctx.lineWidth = isMajor ? 2 : 1;
+          ctx.beginPath();
+          ctx.moveTo(markX, b.top);
+          ctx.lineTo(markX, b.top + tickLen);
+          ctx.stroke();
+
+          if (isMajor) {
+            ctx.fillText(vol, markX, b.top + tickLen + 12);
+          }
+        }
+        ctx.font = 'bold 10px Pretendard, sans-serif';
+        ctx.fillText('(mL)', b.fullRight - 10, b.top + 34);
+
+        // 5. Piston & Stopper (Aligned with scale)
+        const stopperW = 24;
+        const stopperX = b.pistonX;
+
+        // Red Alignment Guide
+        ctx.strokeStyle = '#ef4444';
+        ctx.setLineDash([4, 3]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(stopperX, b.top - 18);
+        ctx.lineTo(stopperX, b.top + b.height + 18);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(stopperX, b.top - 4);
+        ctx.lineTo(stopperX - 5, b.top - 14);
+        ctx.lineTo(stopperX + 5, b.top - 14);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.font = 'bold 11px Pretendard, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${STATE.volume.toFixed(1)} mL`, stopperX, b.top - 18);
+
+        // Black Rubber Stopper
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.roundRect(stopperX, b.top + 2, stopperW, b.height - 4, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(stopperX + 8, b.top + 3, 6, b.height - 6);
+
+        // Plunger Stem
+        const stemX = stopperX + stopperW;
+        const stemW = (b.fullRight + 120) - stemX;
+        const stemH = 22;
+        const stemY = b.centerY - stemH / 2;
+
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.95)';
+        ctx.fillRect(stemX, stemY, stemW, stemH);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(stemX, stemY, stemW, stemH);
+
+        // Plunger Thumb Rest
+        const thumbX = stemX + stemW;
+        const thumbW = 14;
+        const thumbH = 65;
+        const thumbY = b.centerY - thumbH / 2;
+
+        ctx.fillStyle = this.isDraggingPiston ? '#0284c7' : '#0ea5e9';
+        ctx.beginPath();
+        ctx.roundRect(thumbX, thumbY, thumbW, thumbH, 4);
+        ctx.fill();
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        for (let i = -18; i <= 18; i += 8) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(thumbX + 3, b.centerY + i, 8, 2);
+        }
+
+        if (!this.isDraggingPiston) {
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = 'bold 10px Pretendard, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText('◀ 밀기/당기기 ▶', thumbX - 15, thumbY + thumbH + 16);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // --- Volume & UI Synchronization ---
+    function setVolume(val) {
+      STATE.volume = Math.max(20.0, Math.min(100.0, Math.round(val * 10) / 10));
+      document.getElementById('volumeSlider').value = STATE.volume;
+      document.getElementById('slider-vol-display').textContent = STATE.volume.toFixed(1);
+
+      refreshMetrics();
+    }
+
+    function refreshMetrics() {
+      const v = STATE.volume;
+      const pAtm = calculatePressureAtm(v);
+
+      document.getElementById('overlay-volume-ml').textContent = v.toFixed(1) + ' mL';
+      document.getElementById('overlay-pressure-atm').textContent = pAtm.toFixed(2);
+    }
+
+    // --- Record Data Feature (Only Volume and Pressure) ---
+    function recordCurrentData() {
+      const v = STATE.volume;
+      const pAtm = Math.round(calculatePressureAtm(v) * 100) / 100;
+
+      const record = {
+        id: STATE.nextRecordId++,
+        volume: v,
+        pressureAtm: pAtm
+      };
+
+      STATE.records.push(record);
+      renderTable();
+    }
+
+    function deleteRecord(id) {
+      STATE.records = STATE.records.filter(r => r.id !== id);
+      renderTable();
+    }
+
+    function clearTable() {
+      STATE.records = [];
+      STATE.nextRecordId = 1;
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('table-body');
+      const badge = document.getElementById('data-count-badge');
+
+      badge.textContent = `${STATE.records.length}건 기록됨`;
+
+      if (STATE.records.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="py-8 text-center text-slate-400 font-sans">
+              기록된 측정값이 없습니다.<br>
+              피스톤을 움직인 후 <strong class="text-sky-600">[현재 측정값 표에 기록하기]</strong> 버튼을 눌러보세요.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      STATE.records.forEach((r, idx) => {
+        html += `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="py-2.5 px-4 text-center text-slate-400 font-sans">${idx + 1}</td>
+            <td class="py-2.5 px-6 text-center font-bold text-sky-600">${r.volume.toFixed(1)}</td>
+            <td class="py-2.5 px-6 text-center font-bold text-amber-700 bg-amber-50/20">${r.pressureAtm.toFixed(2)}</td>
+            <td class="py-2.5 px-3 text-center">
+              <button class="delete-btn text-slate-400 hover:text-rose-500 transition px-2 py-1 rounded" data-id="${r.id}" title="삭제">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = parseInt(btn.getAttribute('data-id'), 10);
+          deleteRecord(id);
+        });
+      });
+    }
+
+    // --- Reset All Function ---
+    function resetAll(sim) {
+      STATE.volume = 100.0;
+      document.getElementById('volumeSlider').value = 100;
+      document.getElementById('slider-vol-display').textContent = '100.0';
+      clearTable();
+      refreshMetrics();
+      sim.draw();
+    }
+
+    // --- Initialization ---
+    window.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('syringeCanvas');
+
+      const resizeCanvas = () => {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      };
+      resizeCanvas();
+      window.addEventListener('resize', () => {
+        resizeCanvas();
+        sim.draw();
+      });
+
+      const sim = new SyringeSimulation(canvas);
+
+      function loop() {
+        sim.draw();
+        requestAnimationFrame(loop);
+      }
+      loop();
+
+      refreshMetrics();
+      renderTable();
+
+      // Volume Slider
+      const volSlider = document.getElementById('volumeSlider');
+      volSlider.addEventListener('input', (e) => {
+        setVolume(parseFloat(e.target.value));
+      });
+
+      // Steppers
+      document.querySelectorAll('.step-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const step = parseFloat(btn.getAttribute('data-step'));
+          setVolume(STATE.volume + step);
+        });
+      });
+
+      // Presets
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const val = parseFloat(btn.getAttribute('data-vol'));
+          setVolume(val);
+        });
+      });
+
+      // Record Button
+      document.getElementById('btn-record-data').addEventListener('click', recordCurrentData);
+
+      // Keyboard Shortcut (Space or Enter)
+      window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          recordCurrentData();
+        }
+      });
+
+      // Clear Table Button
+      document.getElementById('btn-clear-table').addEventListener('click', clearTable);
+
+      // Reset All Button
+      document.getElementById('btn-reset-all').addEventListener('click', () => {
+        resetAll(sim);
+      });
+    });
+  </script>
+</body>
+</html>
